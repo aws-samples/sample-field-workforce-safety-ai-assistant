@@ -1,0 +1,33 @@
+# Dependencies
+node_modules
+**/node_modules
+cdk/.venv
+.venv
+**/__pycache__
+*.pyc
+
+# Build outputs
+**/dist
+**/build
+**/cdk.out
+**/.vite
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE files
+.idea
+.vscode
+*.swp
+*.swo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# System Files
+.DS_Store
+Thumbs.db

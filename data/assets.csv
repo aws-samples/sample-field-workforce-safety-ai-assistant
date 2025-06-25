@@ -1,0 +1,11 @@
+asset_id,asset_name,asset_type,manufacturer,model_number,installation_date,last_maintenance_date,location_name,status,description
+TRF-D45,Transformer Unit 45,Power Transformer,ABB,TPRE-450/66,2015-06-15,2024-12-15,Dandenong Substation,Active,"66kV/22kV Power transformer, 45MVA capacity, ONAN/ONAF cooling"
+CB-CT102,Circuit Breaker 102,Circuit Breaker,Siemens,3AP1-FG,2018-03-20,2024-11-30,Clayton Terminal Station,Active,"66kV SF6 circuit breaker, 3150A rated current"
+POL-SP234,Power Pole SP234,Distribution Pole,Koppers,Class 1-15.5m,2010-08-10,2024-10-15,Springvale Distribution Center,Active,"15.5m concrete pole, 12kN rated strength, with crossarm"
+CAB-NP567,Underground Cable NP567,Power Cable,Nexans,XLPE-300,2019-02-28,2024-09-20,Noble Park Substation,Active,"22kV XLPE underground cable, 300mm² copper conductor"
+SWG-D78,Switchgear Unit 78,Switchgear,Schneider,RM6-NE-IBI,2017-11-05,2024-08-10,Dandenong Substation,Active,"22kV ring main unit, SF6 insulated with fault indicators"
+VEG-SP789,Vegetation Zone SP789,Vegetation,N/A,N/A,2024-01-01,2024-01-15,Springvale Distribution Center,Active,"Vegetation management zone covering 500m of overhead lines"
+MTR-NP123,Smart Meter NP123,Smart Meter,Landis+Gyr,E350-ZMD,2020-05-15,2024-07-20,Noble Park Substation,Active,"Single phase smart meter with remote disconnect capability"
+TRF-CT456,Transformer Unit 456,Power Transformer,Siemens,GEAFOL-31.5,2016-09-25,2024-06-15,Clayton Terminal Station,Active,"31.5MVA dry-type transformer, AN/AF cooling"
+POL-SP567,Power Pole SP567,Distribution Pole,Rocla,Class 2-12.5m,2012-04-18,2024-05-10,Springvale Distribution Center,Active,"12.5m concrete pole with dual crossarms, strain configuration"
+BAT-D89,Battery Bank D89,Battery System,Exide,PowerSafe-V,2021-12-10,2024-04-05,Dandenong Substation,Active,"110V DC battery bank, valve regulated lead acid, 600Ah capacity"

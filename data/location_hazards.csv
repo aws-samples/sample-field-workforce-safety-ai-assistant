@@ -1,0 +1,6 @@
+location_hazard_id,location_name,hazard_id,status,identified_date,last_review_date,risk_level,reviewed_by
+LH001,Dandenong Substation,HZ001,Active,2024-01-15,2024-01-20,High,John Smith
+LH002,Dandenong Substation,HZ005,Active,2024-01-10,2024-01-20,Medium,Emma Davis
+LH003,Clayton Terminal Station,HZ002,Active,2024-01-12,2024-01-20,Medium,Mike Johnson
+LH004,Springvale Distribution Center,HZ003,Active,2024-01-14,2024-01-20,Medium,Sarah Wilson
+LH005,Noble Park Substation,HZ004,Active,2024-01-13,2024-01-20,High,David Thompson

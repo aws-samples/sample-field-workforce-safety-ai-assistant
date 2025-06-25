@@ -1,0 +1,625 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Field Safety Deployment Stack'
+
+Parameters:
+  CollaboratorFoundationModel:
+    Type: String
+    Default: "anthropic.claude-3-5-haiku-20241022-v1:0"
+    Description: "Foundation model or Cross Region Inference Profile ID for the collaborator agent"
+    ConstraintDescription: "Collaborator foundation model is required"
+    AllowedPattern: ".+"
+    
+  SupervisorFoundationModel:
+    Type: String
+    Default: "anthropic.claude-3-7-sonnet-20250219-v1:0"
+    Description: "Foundation model or Cross Region Inference Profile ID for the supervisor agent"
+    ConstraintDescription: "Supervisor foundation model is required"
+    AllowedPattern: ".+"
+    
+Resources:
+  # STEP 1: Create all IAM roles
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AdministratorAccess
+  CodeBuildServiceRoleDefaultPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CodeBuildProject
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CodeBuildProject
+          - Action:
+              - codebuild:BatchPutCodeCoverages
+              - codebuild:BatchPutTestCases
+              - codebuild:CreateReport
+              - codebuild:CreateReportGroup
+              - codebuild:UpdateReport
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: CodeBuildProject
+                  - -*
+        Version: "2012-10-17"
+      PolicyName: CodeBuildServiceRoleDefaultPolicy
+      Roles:
+        - Ref: CodeBuildServiceRole
+        
+  StepFunctionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StepFunctionsExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            # CodeBuild permissions - for sync execution
+            - Effect: Allow
+              Action:
+                - "codebuild:StartBuild"
+                - "codebuild:BatchGetBuilds"
+              Resource: !GetAtt CodeBuildProject.Arn
+            # Lambda permissions - invoke function
+            - Effect: Allow
+              Action:
+                - "lambda:InvokeFunction"
+              Resource: !GetAtt CFNResponseFunction.Arn
+            # EventBridge permissions - required for Step Functions service integrations
+            - Effect: Allow
+              Action:
+                - "events:PutTargets"
+                - "events:PutRule"
+                - "events:DescribeRule"
+                - "events:DeleteRule"
+                - "events:RemoveTargets"
+                - "events:ListRules"
+                - "events:ListTargetsByRule"
+              Resource: "*"
+            # IAM PassRole for EventBridge
+            - Effect: Allow
+              Action:
+                - "iam:PassRole"
+              Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/*"
+              Condition:
+                StringEquals:
+                  "iam:PassedToService": "events.amazonaws.com"
+            # CloudWatch Logs permissions for Step Functions logging
+            - Effect: Allow
+              Action:
+                - "logs:CreateLogDelivery"
+                - "logs:GetLogDelivery"
+                - "logs:UpdateLogDelivery"
+                - "logs:DeleteLogDelivery"
+                - "logs:ListLogDeliveries"
+                - "logs:PutResourcePolicy"
+                - "logs:DescribeResourcePolicies"
+                - "logs:DescribeLogGroups"
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - "logs:CreateLogStream"
+                - "logs:PutLogEvents"
+                - "logs:DescribeLogStreams"
+              Resource: 
+                - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/states/${AWS::StackName}-BuildStateMachine"
+                - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/states/${AWS::StackName}-BuildStateMachine:*"
+            - Effect: Allow
+              Action:
+                - "logs:CreateLogDelivery"
+                - "logs:GetLogDelivery"
+                - "logs:UpdateLogDelivery"
+                - "logs:DeleteLogDelivery"
+                - "logs:ListLogDeliveries"
+                - "logs:PutResourcePolicy"
+                - "logs:DescribeResourcePolicies"
+              Resource: "*"
+
+  CFNResponseRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  BuildTriggerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: StepFunctionsStartExecution
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: states:StartExecution
+                Resource: !GetAtt BuildStateMachine.Arn
+        - PolicyName: CloudFormationOperations
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudformation:DeleteStack
+                  - cloudformation:ListStacks
+                  - cloudformation:DescribeStacks
+                Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/FieldWorkForceSafetyMainStack/*"
+              - Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*"
+
+  # STEP 2: Create CodeBuild project
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      TimeoutInMinutes: 60 
+      Name:
+        Fn::Sub: FieldSafetyCodeBuild-${AWS::StackName}
+      # Add encryption key using AWS-managed key for CodeBuild
+      EncryptionKey: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/codebuild"
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_LARGE
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+        Type: LINUX_CONTAINER
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: GITHUB_REPO
+            Value: "https://github.com/aws-samples/sample-field-workforce-safety-ai-assistant.git"
+          - Name: BUILD_TIMEOUT
+            Value: "60"
+          - Name: AWS_ACCOUNT_ID
+            Value: !Sub '${AWS::AccountId}'
+          - Name: AWS_REGION
+            Value: !Sub '${AWS::Region}'
+          - Name: STACK_ID
+            Value: !Sub '${AWS::StackId}'
+          - Name: COLLABORATOR_FOUNDATION_MODEL
+            Value: !Ref CollaboratorFoundationModel
+          - Name: SUPERVISOR_FOUNDATION_MODEL
+            Value: !Ref SupervisorFoundationModel
+      ServiceRole:
+        Fn::GetAtt:
+          - CodeBuildServiceRole
+          - Arn
+      Source:
+        Type: NO_SOURCE
+        BuildSpec: |
+          version: 0.2
+          env:
+            variables:
+              NEXT_TELEMETRY_DISABLED: "1"
+          phases:
+            install:
+              runtime-versions:
+                nodejs: 18
+                python: 3.11
+              commands:
+                - echo "Installing dependencies..."
+                - pip install --upgrade pip
+                - pip install requests boto3
+                - npm install -g aws-cdk
+                - cdk --version
+            pre_build:
+              commands:
+                - echo "Cloning repository..."
+                - git clone $GITHUB_REPO
+                - cd field-workforce-safety-ai-assistant
+            build:
+              commands:
+                - export NODE_OPTIONS="--max_old_space_size=4096" # Increase Node.js memory limit
+                - echo "Building project..."
+                - cd cdk
+                - pip install -r requirements.txt
+                - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+                - cdk bootstrap aws://$AWS_ACCOUNT_ID/$AWS_REGION
+                - cdk deploy FieldWorkForceSafetyMainStack --require-approval never --context collaborator_foundation_model="$COLLABORATOR_FOUNDATION_MODEL" --context supervisor_foundation_model="$SUPERVISOR_FOUNDATION_MODEL"
+                - echo "Build completed successfully"
+            post_build:
+              commands:
+                - echo "Deployment process completed"
+          cache:
+            paths:
+              - .npm/**/*
+              - node_modules/**/*
+              - /root/.npm/**/*
+              - /root/.cache/yarn/**/*
+
+  # STEP 3: Create Lambda functions
+  CFNResponseFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "CFNResponseFunction-${AWS::StackName}"
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 30
+      Role: !GetAtt CFNResponseRole.Arn
+      # Suppress W89: Lambda functions should be deployed inside a VPC - This is a simple utility function that doesn't need VPC access
+      # Suppress CKV_AWS_117: Ensure that AWS Lambda function is configured inside a VPC - This is a simple utility function that doesn't need VPC access
+      # Suppress CKV_AWS_173: Check encryption settings for Lambda environment variable - Using default encryption which is sufficient for this use case
+      Code:
+        ZipFile: |
+          import json
+          import urllib3
+          
+          SUCCESS = "SUCCESS"
+          FAILED = "FAILED"
+          
+          def send(event, context, response_status, response_data):
+              # Ensure BuildStatus is included in the response data
+              if 'BuildStatus' not in response_data:
+                  if response_status == SUCCESS:
+                      response_data['BuildStatus'] = 'COMPLETED'
+                  else:
+                      response_data['BuildStatus'] = 'FAILED'
+              
+              response_body = {
+                  'Status': response_status,
+                  'Reason': 'See the details in CloudWatch Log Stream: ' + context.log_stream_name,
+                  'PhysicalResourceId': event.get('PhysicalResourceId', context.log_stream_name),
+                  'StackId': event['StackId'],
+                  'RequestId': event['RequestId'],
+                  'LogicalResourceId': event['LogicalResourceId'],
+                  'Data': response_data
+              }
+              
+              http = urllib3.PoolManager()
+              try:
+                  response = http.request(
+                      'PUT',
+                      event['ResponseURL'],
+                      body=json.dumps(response_body).encode('utf-8'),
+                      headers={'Content-Type': 'application/json'}
+                  )
+                  print(f"Status code: {response.status}")
+              except Exception as e:
+                  print(f"Error sending response: {str(e)}")
+                  raise
+          
+          def handler(event, context):
+              try:
+                  print(f"Received event: {json.dumps(event)}")
+                  status = SUCCESS if event.get('Status') == 'SUCCESS' else FAILED
+                  
+                  # Prepare response data with BuildStatus
+                  response_data = {
+                      'BuildId': event.get('PhysicalResourceId'),
+                      'BuildStatus': 'COMPLETED' if status == SUCCESS else 'FAILED'
+                  }
+                  
+                  # Include any additional data from the event
+                  if 'Data' in event and isinstance(event['Data'], dict):
+                      for key, value in event['Data'].items():
+                          response_data[key] = value
+                  
+                  send(event, context, status, response_data)
+              except Exception as e:
+                  print(f"Error in handler: {str(e)}")
+                  send(event, context, FAILED, {
+                      'Error': str(e),
+                      'BuildStatus': 'FAILED'
+                  })
+
+  # STEP 4: Create Step Functions state machine
+  BuildStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub "${AWS::StackName}-BuildStateMachine"
+      DefinitionString: !Sub |
+        {
+          "Comment": "State machine for managing CodeBuild deployment",
+          "StartAt": "StartBuild",
+          "States": {
+            "StartBuild": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::codebuild:startBuild.sync",
+              "Parameters": {
+                "ProjectName": "${CodeBuildProject}"
+              },
+              "Next": "CheckBuildStatus"
+            },
+            "CheckBuildStatus": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.Build.BuildStatus",
+                  "StringEquals": "SUCCEEDED",
+                  "Next": "Success"
+                },
+                {
+                  "Variable": "$.Build.BuildStatus",
+                  "StringEquals": "FAILED",
+                  "Next": "Fail"
+                }
+              ],
+              "Default": "Fail"
+            },
+            "Success": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${CFNResponseFunction.Arn}",
+                "Payload": {
+                  "RequestType.$": "$$.Execution.Input.RequestType",
+                  "RequestId.$": "$$.Execution.Input.RequestId",
+                  "StackId.$": "$$.Execution.Input.StackId",
+                  "LogicalResourceId.$": "$$.Execution.Input.LogicalResourceId",
+                  "PhysicalResourceId.$": "$.Build.Id",
+                  "ResponseURL.$": "$$.Execution.Input.ResponseURL",
+                  "ResourceType.$": "$$.Execution.Input.ResourceType",
+                  "ResourceProperties.$": "$$.Execution.Input.ResourceProperties",
+                  "Status": "SUCCESS",
+                  "Data": {
+                    "BuildId.$": "$.Build.Id",
+                    "BuildArn.$": "$.Build.Arn",
+                    "BuildStatus": "COMPLETED",
+                    "BuildResult.$": "$.Build.BuildStatus"
+                  }
+                }
+              },
+              "End": true
+            },
+            "Fail": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${CFNResponseFunction.Arn}",
+                "Payload": {
+                  "RequestType.$": "$$.Execution.Input.RequestType",
+                  "RequestId.$": "$$.Execution.Input.RequestId",
+                  "StackId.$": "$$.Execution.Input.StackId",
+                  "LogicalResourceId.$": "$$.Execution.Input.LogicalResourceId",
+                  "PhysicalResourceId.$": "$.Build.Id",
+                  "ResponseURL.$": "$$.Execution.Input.ResponseURL",
+                  "ResourceType.$": "$$.Execution.Input.ResourceType",
+                  "ResourceProperties.$": "$$.Execution.Input.ResourceProperties",
+                  "Status": "FAILED",
+                  "Data": {
+                    "BuildId.$": "$.Build.Id",
+                    "BuildArn.$": "$.Build.Arn",
+                    "BuildStatus": "FAILED",
+                    "BuildResult.$": "$.Build.BuildStatus",
+                    "FailureReason.$": "States.Format('Build failed: {}', $.Build.Phases[?(@.PhaseStatus == 'FAILED')].Contexts[0].Message)"
+                  }
+                }
+              },
+              "End": true
+            }
+          }
+        }
+      RoleArn: !GetAtt StepFunctionsRole.Arn
+
+  # STEP 5: Create BuildTriggerLambda
+  BuildTriggerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "BuildTriggerLambda-${AWS::StackName}"
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 60
+      Role: !GetAtt BuildTriggerRole.Arn
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN: !GetAtt BuildStateMachine.Arn
+      # Suppress W89: Lambda functions should be deployed inside a VPC - This is a simple trigger function that doesn't need VPC access
+      # Suppress CKV_AWS_117: Ensure that AWS Lambda function is configured inside a VPC - This is a simple trigger function that doesn't need VPC access
+      # Suppress CKV_AWS_173: Check encryption settings for Lambda environment variable - Using default encryption which is sufficient for this use case
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import os
+          import urllib3
+          
+          def parameters_changed(event):
+              """Check if parameters changed by comparing old vs new ResourceProperties."""
+              if event.get('RequestType') != 'Update':
+                  return True  # Always trigger for Create/Delete
+              
+              old_props = event.get('OldResourceProperties', {})
+              new_props = event.get('ResourceProperties', {})
+              
+              # Compare the parameter values directly
+              old_params = {
+                  'CollaboratorFoundationModel': old_props.get('CollaboratorFoundationModel'),
+                  'SupervisorFoundationModel': old_props.get('SupervisorFoundationModel')
+              }
+              
+              new_params = {
+                  'CollaboratorFoundationModel': new_props.get('CollaboratorFoundationModel'),
+                  'SupervisorFoundationModel': new_props.get('SupervisorFoundationModel')
+              }
+              
+              changed = old_params != new_params
+              if changed:
+                  print(f"Parameters changed - Old: {old_params}, New: {new_params}")
+              else:
+                  print("No parameter changes detected")
+              
+              return changed
+          
+          def handler(event, context):
+              print(f"Received event: {json.dumps(event)}")
+              
+              physical_id = event.get('PhysicalResourceId', 'BuildTrigger')
+              request_type = event.get('RequestType')
+              
+              # For Delete requests, determine if this is cleanup vs real deletion
+              if request_type == 'Delete':
+                  # Check if the parent stack is in UPDATE_COMPLETE_CLEANUP_IN_PROGRESS state
+                  try:
+                      cfn = boto3.client('cloudformation')
+                      stack_id = event['StackId']
+                      response = cfn.describe_stacks(StackName=stack_id)
+                      stack_status = response['Stacks'][0]['StackStatus']
+                      
+                      print(f"Parent stack status: {stack_status}")
+                      
+                      # If stack is in cleanup phase, this is a cleanup delete
+                      if stack_status == 'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS':
+                          print("This is a cleanup DELETE during stack UPDATE - skipping CDK stack deletion")
+                          send_cfn_response(event, context, 'SUCCESS', {
+                              'BuildStatus': 'CLEANUP_SKIPPED'
+                          }, physical_id)
+                          return
+                      
+                  except Exception as e:
+                      print(f"Error checking stack status: {str(e)}")
+                      # If we can't determine stack status, assume it's a real delete to be safe
+                  
+                  # This is a real stack deletion - proceed with CDK stack deletion
+                  print("This is a real stack DELETE - proceeding with CDK stack deletion")
+                  try:
+                      cfn = boto3.client('cloudformation')
+                      try:
+                          cfn.describe_stacks(StackName="FieldWorkForceSafetyMainStack")
+                          print("Deleting FieldWorkForceSafetyMainStack...")
+                          cfn.delete_stack(StackName="FieldWorkForceSafetyMainStack")
+                          print("Delete request sent successfully")
+                      except cfn.exceptions.ClientError as e:
+                          if "does not exist" in str(e):
+                              print("Stack does not exist, nothing to delete")
+                          else:
+                              print(f"Error checking stack: {str(e)}")
+                  except Exception as e:
+                      print(f"Error deleting stack: {str(e)}")
+                  
+                  send_cfn_response(event, context, 'SUCCESS', {
+                      'BuildStatus': 'DELETED'
+                  }, physical_id)
+                  return
+              
+              # Check if parameters actually changed
+              if not parameters_changed(event):
+                  print("No parameter changes detected, skipping rebuild")
+                  send_cfn_response(event, context, 'SUCCESS', {
+                      'BuildStatus': 'SKIPPED',
+                      'Message': 'No parameter changes detected'
+                  }, physical_id)
+                  return
+              
+              # Parameters changed or this is a Create - start the state machine
+              try:
+                  sfn = boto3.client('stepfunctions')
+                  response = sfn.start_execution(
+                      stateMachineArn=os.environ['STATE_MACHINE_ARN'],
+                      input=json.dumps(event)
+                  )
+                  print(f"Started execution: {response['executionArn']}")
+                  
+              except Exception as e:
+                  print(f"Error starting state machine: {str(e)}")
+                  send_cfn_response(event, context, 'FAILED', {
+                      'Error': str(e),
+                      'BuildStatus': 'FAILED'
+                  }, physical_id)
+          
+          def send_cfn_response(event, context, response_status, response_data, physical_resource_id=None):
+              response_body = {
+                  'Status': response_status,
+                  'Reason': 'See the details in CloudWatch Log Stream: ' + context.log_stream_name,
+                  'PhysicalResourceId': physical_resource_id or context.log_stream_name,
+                  'StackId': event['StackId'],
+                  'RequestId': event['RequestId'],
+                  'LogicalResourceId': event['LogicalResourceId'],
+                  'Data': response_data
+              }
+              
+              http = urllib3.PoolManager()
+              try:
+                  response = http.request(
+                      'PUT',
+                      event['ResponseURL'],
+                      body=json.dumps(response_body).encode('utf-8'),
+                      headers={'Content-Type': 'application/json'}
+                  )
+                  print(f"Status code: {response.status}")
+              except Exception as e:
+                  print(f"Error sending response: {str(e)}")
+                  raise
+
+  # STEP 6: Create the custom resource
+  BuildTrigger:
+    Type: Custom::BuildTrigger
+    Properties:
+      ServiceToken: !GetAtt BuildTriggerLambda.Arn
+      CollaboratorFoundationModel: !Ref CollaboratorFoundationModel
+      SupervisorFoundationModel: !Ref SupervisorFoundationModel
+
+Outputs:
+  DeploymentStatus:
+    Description: Status of the deployment
+    Value: !GetAtt BuildTrigger.BuildStatus
+  CodeBuildProjectName:
+    Description: Name of the CodeBuild project
+    Value: !Ref CodeBuildProject
+  StateMachineArn:
+    Description: ARN of the Step Functions state machine
+    Value: !Ref BuildStateMachine

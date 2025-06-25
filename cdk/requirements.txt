@@ -1,0 +1,8 @@
+aws-cdk-lib==2.190.0
+aws_cdk.aws_lambda_python_alpha==2.190.0a0
+constructs==10.4.2
+cdk_nag==2.34.2
+aws_cdk.aws_sagemaker_alpha==2.190.0a0
+# Strands SDK dependencies (for local development and testing)
+strands-agents>=0.1.0
+strands-agents-tools>=0.1.0

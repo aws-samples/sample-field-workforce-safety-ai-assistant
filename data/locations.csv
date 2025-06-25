@@ -1,0 +1,5 @@
+location_name,description,latitude,longitude,address
+Dandenong Substation,Main distribution substation serving Dandenong industrial area,-37.976034,145.215764,"1234 South Gippsland Highway, Dandenong VIC 3175"
+Clayton Terminal Station,Major terminal station connecting transmission and distribution networks,-37.915843,145.121741,"567 Clayton Road, Clayton VIC 3168"
+Springvale Distribution Center,Distribution center managing local power network,-37.946621,145.152865,"890 Springvale Road, Springvale VIC 3171"
+Noble Park Substation,Substation serving Noble Park residential area,-37.967140,145.176486,"432 Corrigan Road, Noble Park VIC 3174"

@@ -1,0 +1,6 @@
+hazard_id,hazard_name,hazard_category,description,severity_level,location_name
+HZ001,Live Equipment Exposure,Electrical,"High voltage equipment with exposed terminals in switchyard",4,Dandenong Substation
+HZ002,Oil Containment Risk,Environmental,"Transformer oil containment bund showing signs of cracking",3,Clayton Terminal Station
+HZ003,Unstable Ground Access,Physical,"Soft soil conditions near power pole after recent rains",3,Springvale Distribution Center
+HZ004,Asbestos Present,Health,"Known asbestos containing materials in old switchboard building",5,Noble Park Substation
+HZ005,Wildlife Hazard,Biological,"Snake activity reported in vegetation around transformers",2,Dandenong Substation

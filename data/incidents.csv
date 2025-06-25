@@ -1,0 +1,6 @@
+incident_id,location_name,incident_date,incident_type,severity_level,description,reported_by
+INC001,Dandenong Substation,2025-01-20T12:00:00,Near Miss,2,"Contractor nearly contacted live bus bar during inspection",John Smith
+INC002,Clayton Terminal Station,2025-01-20T12:00:00,Equipment Failure,3,"Circuit breaker failed to operate during switching sequence",Mike Johnson
+INC003,Springvale Distribution Center,2025-01-20T12:00:00,Safety Breach,4,"Unauthorized access to restricted area by member of public",Sarah Wilson
+INC004,Noble Park Substation,2025-01-20T12:00:00,Environmental,5,"Oil leak detected from transformer containment area",David Thompson
+INC005,Dandenong Substation,2025-01-20T12:00:00,Equipment Damage,3,"Storm damage to control building roof",Emma Davis

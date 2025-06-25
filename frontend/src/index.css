@@ -1,0 +1,244 @@
+@import "@aws-amplify/ui-react/styles.css";
+@import "@cloudscape-design/global-styles/index.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* tailwindの設定で上書きされてしまうので、importantを設定する */
+.amplify-button--primary {
+  background-color: var(
+    --amplify-components-button-primary-background-color
+  ) !important;
+}
+
+
+
+.App {
+  text-align: left;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+
+/* Reset styles */
+body, html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f9; /* Light background for better contrast */
+}
+
+/* Work Order List Container */
+.work-order-list {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* Work Order Header (h1) Styling */
+.workorder-h2 {
+  font-size: 1.5rem; /* Matches app title size for hierarchy */
+  font-weight: 600; /* Semi-bold for balance */
+  color: #1a237e; /* Use the same dark blue color as app title */
+  margin: 0.5rem 0; /* Add vertical spacing */
+  letter-spacing: 0.01em; /* Subtle letter spacing for readability */
+  line-height: 1.4; /* Improved line height for readability */
+  padding: 1rem;
+}
+
+
+/* Table Container */
+.table-container {
+  flex: 1;
+  overflow-x: auto; /* Allow horizontal scrolling on smaller screens */
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for elevation */
+}
+
+/* Table Styles */
+table {
+  width: 100%;
+  margin: 1%;
+  border-collapse: collapse; /* Remove gaps between table cells */
+}
+
+th {
+  background-color:#d4d4d4; /* header background color */
+  padding: 1rem;
+  font-size: 1.2rem;
+  text-align: left;
+  font-weight: bold;
+  color: black; /* White text for better contrast */
+}
+
+td {
+  font-size: 1.1rem; 
+  padding: 12px;
+  border-bottom: solid thin #dee2e6; /* Light gray border between rows */
+}
+
+tr:nth-child(even) {
+  background-color: #f9f9f9; /* Alternate row colors for better readability */
+}
+
+tr:hover {
+  background-color: #eaf4fc; /* Highlight row on hover with light blue */
+}
+
+/* Status Badge Styling */
+.status-badge {
+  display: inline-block;
+  padding: .4rem .8rem;
+  border-radius: .5rem; /* Rounded corners for badges */
+}
+
+
+.status-badge.approved {
+  color: #2e7d32; /* Dark green text */
+}
+
+.status-badge.in-progress {
+  color: #1565c0; /* Dark blue text */
+}
+
+
+.status-badge.pending {
+  color: #856404; /* Dark yellow text */
+}
+
+.status-badge.rejected {
+  color: #721c24; /* Dark red text */
+}
+
+
+
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .App {
+    padding: 10px;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .detail-row {
+    flex-direction: column;
+  }
+
+  .detail-label {
+    width: 100%;
+    margin-bottom: 5px;
+  }
+}
+
+/* Loading state */
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+/* Error state */
+.error {
+  color: #dc3545;
+  padding: 20px;
+  text-align: center;
+  background-color: #f8d7da;
+  border-radius: 4px;
+  margin: 20px 0;
+}
+
+/* Navigation */
+.nav-back {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.nav-back button {
+  background-color: #6c757d;
+}
+
+.nav-back button:hover {
+  background-color: #5a6268;
+}
+/* nav bar styles */
+
+/* Navbar Container */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff; /* White background */
+  padding: 1rem ; /* Add padding for spacing */
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  border-bottom: 1px solid #e0e0e0; /* Light border for separation */
+}
+
+/* App Title Styling */
+.app-title {
+  font-size: 2rem; /* Matches h2 size for consistency */
+  font-weight: 700; /* Bold for prominence */
+  color: #1a237e;/* Same professional dark blue as h2 */
+  margin: 0; /* Remove extra margins */
+  text-align: left; /* Align title to the left */
+  padding: 0.5rem 0; /* Add vertical padding for spacing */
+}
+
+/* Navbar Logo */
+.navbar-logo {
+  height: 40px; /* Set a fixed height for the logo */
+}
+
+/* Navbar Right Section */
+.navbar-right {
+  display: flex;
+  align-items: center;
+}
+
+/* Avatar Styling */
+.navbar-right .avatar {
+  margin-right: 1rem; /* Space between avatar and logout button */
+}
+
+/* Logout Button */
+.logout-button {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem; /* Smaller font size for the button text */
+  color: #6b7280; /* Gray text color */
+  background-color: transparent; /* No background */
+  border: none; /* Remove default border */
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  color: #374151; /* Darker gray on hover */
+}
+
+/* Responsive Adjustments */
+@media screen and (max-width: 768px) {
+  .navbar {
+    flex-direction: column; /* Stack items vertically on smaller screens */
+    align-items: flex-start; /* Align items to the left */
+    padding: 1rem;
+    gap: 1rem; /* Add spacing between sections */
+    text-align: left;
+    flex-wrap: wrap;
+  }
+
+  .app-title {
+    font-size: 1.25rem; /* Reduce font size for smaller screens */
+    margin-bottom: unset;
+    word-wrap:"break-word;"
+}
+}

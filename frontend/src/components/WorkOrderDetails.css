@@ -1,0 +1,43 @@
+.safety-check-response {
+  margin-top: 15px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.safety-check-response h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0073bb;
+  margin-bottom: 15px;
+}
+
+.safety-check-response h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+  margin-top: 20px;
+  margin-bottom: 12px;
+}
+
+.safety-check-response ul {
+  margin-left: 20px;
+  margin-bottom: 15px;
+}
+
+.safety-check-response li {
+  margin-bottom: 5px;
+}
+
+.safety-check-response p {
+  margin-bottom: 10px;
+}
+
+.safety-check-response.error {
+  color: #d13212;
+  font-weight: 500;
+}
+
+.section-heading-complete {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1e8e3e; /* Green color */
+}

@@ -1,0 +1,18 @@
+control_measure_id,location_hazard_id,measure_description,implementation_date,status,responsible_person,review_frequency,last_review_date,effectiveness_rating
+CM001,LH001,Restricted access implemented,2024-01-15,Active,John Smith,Monthly,2024-01-20,4
+CM002,LH001,Safety barriers installed,2024-01-15,Active,John Smith,Monthly,2024-01-20,5
+CM003,LH001,Warning signs posted,2024-01-15,Active,John Smith,Monthly,2024-01-20,3
+CM004,LH001,PPE requirements enforced,2024-01-15,Active,John Smith,Weekly,2024-01-20,5
+CM005,LH002,Regular vegetation clearing,2024-01-10,Active,Emma Davis,Weekly,2024-01-20,4
+CM006,LH002,Snake protection gear mandatory,2024-01-10,Active,Emma Davis,Monthly,2024-01-20,5
+CM007,LH002,First aid stations nearby,2024-01-10,Active,Emma Davis,Monthly,2024-01-20,4
+CM008,LH003,Weekly inspections,2024-01-12,Active,Mike Johnson,Weekly,2024-01-20,4
+CM009,LH003,Secondary containment installed,2024-01-12,Active,Mike Johnson,Monthly,2024-01-20,5
+CM010,LH003,Spill kits available,2024-01-12,Active,Mike Johnson,Weekly,2024-01-20,4
+CM011,LH004,Ground stability testing,2024-01-14,Active,Sarah Wilson,Weekly,2024-01-20,5
+CM012,LH004,Alternative access route marked,2024-01-14,Active,Sarah Wilson,Monthly,2024-01-20,4
+CM013,LH004,Weather monitoring protocol,2024-01-14,Active,Sarah Wilson,Daily,2024-01-20,4
+CM014,LH005,Asbestos register maintained,2024-01-13,Active,David Thompson,Monthly,2024-01-20,5
+CM015,LH005,Licensed contractors only,2024-01-13,Active,David Thompson,Monthly,2024-01-20,5
+CM016,LH005,Air monitoring during work,2024-01-13,Active,David Thompson,Daily,2024-01-20,5
+CM017,LH005,Decontamination procedures,2024-01-13,Active,David Thompson,Weekly,2024-01-20,5
