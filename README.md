@@ -21,8 +21,9 @@ You can deploy this solution using either AWS CDK directly or via CloudFormation
 ### Prerequisites
 
 - An AWS account
-- Access to Amazon Bedrock foundation models (Claude 3.X recommended)
-- Enable required models in the Amazon Bedrock console. You may need to request access if not already granted.
+- Access to Amazon Bedrock foundation models (Claude 3.5 and above recommended),
+- Enable required models in the Amazon Bedrock console (https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/modelaccess). You may need to request access if not already granted.
+- We recommend using Cross Region Inference profile for better agent performance, please refer instructions at https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html for details.
 
 
 ### Deployment Options
@@ -77,7 +78,7 @@ cdk bootstrap
 
 6. Deploy the FieldWorkForceSafetyMainStack stack with required parameters:
 ```bash    
-cdk deploy FieldWorkForceSafetyMainStack --require-approval never --context collaborator_foundation_model="us.anthropic.claude-3-5-haiku-20241022-v1:0" --context supervisor_foundation_model="us.anthropic.claude-3-7-sonnet-20250219-v1:0" 
+cdk deploy FieldWorkForceSafetyMainStack --require-approval never --context collaborator_foundation_model="claude-3-5-haiku-20241022-v1:0" --context supervisor_foundation_model="anthropic.claude-3-7-sonnet-20250219-v1:0" 
 ```
 
 ## Clean Up
