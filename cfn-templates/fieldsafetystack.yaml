@@ -4,15 +4,15 @@ Description: 'Field Safety Deployment Stack'
 Parameters:
   CollaboratorFoundationModel:
     Type: String
-    Default: "anthropic.claude-3-5-haiku-20241022-v1:0"
-    Description: "Foundation model or Cross Region Inference Profile ID for the collaborator agent"
+    Default: "anthropic.claude-3-sonnet-20240229-v1:0"
+    Description: "Foundation model for the collaborator agent"
     ConstraintDescription: "Collaborator foundation model is required"
     AllowedPattern: ".+"
     
   SupervisorFoundationModel:
     Type: String
-    Default: "anthropic.claude-3-7-sonnet-20250219-v1:0"
-    Description: "Foundation model or Cross Region Inference Profile ID for the supervisor agent"
+    Default: "anthropic.claude-3-sonnet-20240229-v1:0"
+    Description: "Foundation model for the supervisor agent"
     ConstraintDescription: "Supervisor foundation model is required"
     AllowedPattern: ".+"
     
@@ -178,6 +178,15 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CloudFormationReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/FieldWorkForceSafetyMainStack/*"
 
   BuildTriggerRole:
     Type: AWS::IAM::Role
@@ -219,8 +228,10 @@ Resources:
     Type: AWS::CodeBuild::Project
     Properties:
       TimeoutInMinutes: 60 
-      Name:
-        Fn::Sub: FieldSafetyCodeBuild-${AWS::StackName}
+      Name: 
+        Fn::Sub: 
+          - "FieldSafetyCodeBuild-${StackIdSuffix}"
+          - StackIdSuffix: !Select [4, !Split ["-", !Select [2, !Split ["/", !Ref "AWS::StackId"]]]]
       # Add encryption key using AWS-managed key for CodeBuild
       EncryptionKey: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/codebuild"
       Artifacts:
@@ -271,7 +282,7 @@ Resources:
               commands:
                 - echo "Cloning repository..."
                 - git clone $GITHUB_REPO
-                - cd field-workforce-safety-ai-assistant
+                - cd sample-field-workforce-safety-ai-assistant
             build:
               commands:
                 - export NODE_OPTIONS="--max_old_space_size=4096" # Increase Node.js memory limit
@@ -296,7 +307,10 @@ Resources:
   CFNResponseFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "CFNResponseFunction-${AWS::StackName}"
+      FunctionName: 
+        Fn::Sub: 
+          - "CFNResponse-${StackIdSuffix}"
+          - StackIdSuffix: !Select [4, !Split ["-", !Select [2, !Split ["/", !Ref "AWS::StackId"]]]]
       Handler: index.handler
       Runtime: python3.11
       Timeout: 30
@@ -308,9 +322,34 @@ Resources:
         ZipFile: |
           import json
           import urllib3
+          import boto3
           
           SUCCESS = "SUCCESS"
           FAILED = "FAILED"
+          
+          def get_cdk_stack_outputs():
+              """Retrieve outputs from the CDK stack."""
+              try:
+                  cfn = boto3.client('cloudformation')
+                  response = cfn.describe_stacks(StackName='FieldWorkForceSafetyMainStack')
+                  
+                  if response['Stacks']:
+                      stack = response['Stacks'][0]
+                      outputs = {}
+                      
+                      if 'Outputs' in stack:
+                          for output in stack['Outputs']:
+                              outputs[output['OutputKey']] = output['OutputValue']
+                      
+                      print(f"Retrieved CDK stack outputs: {outputs}")
+                      return outputs
+                  else:
+                      print("CDK stack not found")
+                      return {}
+                      
+              except Exception as e:
+                  print(f"Error retrieving CDK stack outputs: {str(e)}")
+                  return {}
           
           def send(event, context, response_status, response_data):
               # Ensure BuildStatus is included in the response data
@@ -351,7 +390,8 @@ Resources:
                   # Prepare response data with BuildStatus
                   response_data = {
                       'BuildId': event.get('PhysicalResourceId'),
-                      'BuildStatus': 'COMPLETED' if status == SUCCESS else 'FAILED'
+                      'BuildStatus': 'COMPLETED' if status == SUCCESS else 'FAILED',
+                      'FrontendUrl': ''  # Initialize with empty string
                   }
                   
                   # Include any additional data from the event
@@ -359,19 +399,32 @@ Resources:
                       for key, value in event['Data'].items():
                           response_data[key] = value
                   
+                  # If build was successful, try to get CDK stack outputs
+                  if status == SUCCESS:
+                      cdk_outputs = get_cdk_stack_outputs()
+                      if 'FrontendUrl' in cdk_outputs:
+                          response_data['FrontendUrl'] = cdk_outputs['FrontendUrl']
+                          print(f"Added FrontendUrl to response: {cdk_outputs['FrontendUrl']}")
+                      else:
+                          print("FrontendUrl not found in CDK stack outputs")
+                  
                   send(event, context, status, response_data)
               except Exception as e:
                   print(f"Error in handler: {str(e)}")
                   send(event, context, FAILED, {
                       'Error': str(e),
-                      'BuildStatus': 'FAILED'
+                      'BuildStatus': 'FAILED',
+                      'FrontendUrl': ''  # Ensure FrontendUrl is always present
                   })
 
   # STEP 4: Create Step Functions state machine
   BuildStateMachine:
     Type: AWS::StepFunctions::StateMachine
     Properties:
-      StateMachineName: !Sub "${AWS::StackName}-BuildStateMachine"
+      StateMachineName: 
+        Fn::Sub: 
+          - "BuildSM-${StackIdSuffix}"
+          - StackIdSuffix: !Select [4, !Split ["-", !Select [2, !Split ["/", !Ref "AWS::StackId"]]]]
       DefinitionString: !Sub |
         {
           "Comment": "State machine for managing CodeBuild deployment",
@@ -383,6 +436,19 @@ Resources:
               "Parameters": {
                 "ProjectName": "${CodeBuildProject}"
               },
+              "TimeoutSeconds": 4000,
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.Timeout", "States.TaskFailed"],
+                  "Next": "HandleError",
+                  "ResultPath": "$.Error"
+                },
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "Next": "HandleError",
+                  "ResultPath": "$.Error"
+                }
+              ],
               "Next": "CheckBuildStatus"
             },
             "CheckBuildStatus": {
@@ -411,16 +477,37 @@ Resources:
                   "RequestId.$": "$$.Execution.Input.RequestId",
                   "StackId.$": "$$.Execution.Input.StackId",
                   "LogicalResourceId.$": "$$.Execution.Input.LogicalResourceId",
-                  "PhysicalResourceId.$": "$.Build.Id",
+                  "PhysicalResourceId.$": "States.Format('build-{}', $$.Execution.Name)",
                   "ResponseURL.$": "$$.Execution.Input.ResponseURL",
                   "ResourceType.$": "$$.Execution.Input.ResourceType",
                   "ResourceProperties.$": "$$.Execution.Input.ResourceProperties",
                   "Status": "SUCCESS",
                   "Data": {
-                    "BuildId.$": "$.Build.Id",
-                    "BuildArn.$": "$.Build.Arn",
                     "BuildStatus": "COMPLETED",
                     "BuildResult.$": "$.Build.BuildStatus"
+                  }
+                }
+              },
+              "End": true
+            },
+            "HandleError": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${CFNResponseFunction.Arn}",
+                "Payload": {
+                  "RequestType.$": "$$.Execution.Input.RequestType",
+                  "RequestId.$": "$$.Execution.Input.RequestId",
+                  "StackId.$": "$$.Execution.Input.StackId",
+                  "LogicalResourceId.$": "$$.Execution.Input.LogicalResourceId",
+                  "PhysicalResourceId.$": "States.Format('build-{}', $$.Execution.Name)",
+                  "ResponseURL.$": "$$.Execution.Input.ResponseURL",
+                  "ResourceType.$": "$$.Execution.Input.ResourceType",
+                  "ResourceProperties.$": "$$.Execution.Input.ResourceProperties",
+                  "Status": "FAILED",
+                  "Data": {
+                    "BuildStatus": "FAILED",
+                    "BuildResult": "ERROR"
                   }
                 }
               },
@@ -436,17 +523,14 @@ Resources:
                   "RequestId.$": "$$.Execution.Input.RequestId",
                   "StackId.$": "$$.Execution.Input.StackId",
                   "LogicalResourceId.$": "$$.Execution.Input.LogicalResourceId",
-                  "PhysicalResourceId.$": "$.Build.Id",
+                  "PhysicalResourceId.$": "States.Format('build-{}', $$.Execution.Name)",
                   "ResponseURL.$": "$$.Execution.Input.ResponseURL",
                   "ResourceType.$": "$$.Execution.Input.ResourceType",
                   "ResourceProperties.$": "$$.Execution.Input.ResourceProperties",
                   "Status": "FAILED",
                   "Data": {
-                    "BuildId.$": "$.Build.Id",
-                    "BuildArn.$": "$.Build.Arn",
                     "BuildStatus": "FAILED",
-                    "BuildResult.$": "$.Build.BuildStatus",
-                    "FailureReason.$": "States.Format('Build failed: {}', $.Build.Phases[?(@.PhaseStatus == 'FAILED')].Contexts[0].Message)"
+                    "BuildResult.$": "$.Build.BuildStatus"
                   }
                 }
               },
@@ -460,7 +544,10 @@ Resources:
   BuildTriggerLambda:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "BuildTriggerLambda-${AWS::StackName}"
+      FunctionName: 
+        Fn::Sub: 
+          - "BuildTrigger-${StackIdSuffix}"
+          - StackIdSuffix: !Select [4, !Split ["-", !Select [2, !Split ["/", !Ref "AWS::StackId"]]]]
       Handler: index.handler
       Runtime: python3.11
       Timeout: 60
@@ -573,6 +660,8 @@ Resources:
                       input=json.dumps(event)
                   )
                   print(f"Started execution: {response['executionArn']}")
+                  print("Step Functions will handle CloudFormation response when build completes")
+                  # DO NOT send CFN response here - Step Functions will handle it
                   
               except Exception as e:
                   print(f"Error starting state machine: {str(e)}")
@@ -582,6 +671,10 @@ Resources:
                   }, physical_id)
           
           def send_cfn_response(event, context, response_status, response_data, physical_resource_id=None):
+              # Ensure FrontendUrl is always present in response data
+              if 'FrontendUrl' not in response_data:
+                  response_data['FrontendUrl'] = ''
+              
               response_body = {
                   'Status': response_status,
                   'Reason': 'See the details in CloudWatch Log Stream: ' + context.log_stream_name,
@@ -623,3 +716,6 @@ Outputs:
   StateMachineArn:
     Description: ARN of the Step Functions state machine
     Value: !Ref BuildStateMachine
+  FrontendUrl:
+    Description: URL of the deployed frontend application
+    Value: !GetAtt BuildTrigger.FrontendUrl

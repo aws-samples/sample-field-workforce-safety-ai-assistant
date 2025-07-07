@@ -43,6 +43,8 @@ The CloudFormation template will:
 - Bootstrap the CDK environment
 - Deploy all required resources using CDK
 
+6. After successful deployment, go to the newly created stack **Outputs** tab. Look for the **FrontendUrl** output - this is your application URL. Click on the URL to open the application
+
 #### Option 2: Deploy using CDK directly
 
 ##### Prerequisites
@@ -80,6 +82,8 @@ cdk bootstrap
 ```bash    
 cdk deploy FieldWorkForceSafetyMainStack --require-approval never --context collaborator_foundation_model="claude-3-5-haiku-20241022-v1:0" --context supervisor_foundation_model="anthropic.claude-3-7-sonnet-20250219-v1:0" 
 ```
+
+7. After CDK deployment, you can find the frontend URL in the stack outputs displayed in your terminal -- this is your application URL. Click on the URL to open the application
 
 ## Clean Up
 To avoid further charges, follow the tear down procedure:
