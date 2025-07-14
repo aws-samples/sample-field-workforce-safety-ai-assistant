@@ -345,11 +345,11 @@ def emergency_alerts_tool(lat: str, long: str) -> str:
             if geometry['type'] == 'Point':
                 point_lon, point_lat = geometry['coordinates']
                 distance = haversine_distance(float(search_point[1]), float(search_point[0]), float(point_lat), float(point_lon))
-                return distance <= 20  # 20 km radius
+                return distance <= 10  # 20 km radius
             elif geometry['type'] == 'Polygon':
                 for coord in geometry['coordinates'][0]:
                     distance = haversine_distance(float(search_point[1]), float(search_point[0]), float(coord[1]), float(coord[0]))
-                    if distance <= 20:
+                    if distance <= 10:
                         return True
             return False
         

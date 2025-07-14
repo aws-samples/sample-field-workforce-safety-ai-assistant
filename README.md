@@ -21,7 +21,7 @@ You can deploy this solution using either AWS CDK directly or via CloudFormation
 ### Prerequisites
 
 - An AWS account
-- Access to Amazon Bedrock foundation models (Claude 3.5 and above recommended),
+- Access to Amazon Bedrock foundation models (this sample has been tested with Anthropic Sonnet 3.5+, Amazon Nova Pro/Premier),
 - Enable required models in the Amazon Bedrock console (https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/modelaccess). You may need to request access if not already granted.
 - We recommend using Cross Region Inference profile for better agent performance, please refer instructions at https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html for details.
 
