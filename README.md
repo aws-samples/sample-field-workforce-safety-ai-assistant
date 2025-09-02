@@ -1,104 +1,141 @@
 # Gen AI Based Field Workforce Safety Assistant
 
-## Architecture Overview
+This AWS sample demonstrates how to build a multi-agent AI system for field workforce safety using Amazon Bedrock and other AWS services. 
 
-This solution provides a safety assistant for field workforce personnel, leveraging generative AI to help workers assess and mitigate safety risks in industrial environments.
+## Overview
 
-### Backend
+Field workforce safety is a critical concern across industries such as utilities, construction, and oil & gas, where workers face significant risks during infrastructure maintenance and emergency response operations. This solution leverages generative AI and multi-agent systems to help organizations:
 
-The backend is built using AWS services including:
-- Amazon Bedrock for foundation models
-- Amazon Bedrock Agents and Strands agents SDK options for orchestrating multi-agent workflows
-- AWS Lambda for serverless compute
-- Amazon DynamoDB for data storage
-- Amazon API Gateway for REST API endpoints
-- Amazon Cognito for authentication
+- Automate safety assessments and risk analysis
+- Provide real-time safety guidance and emergency response
+- Ensure regulatory compliance through intelligent monitoring
+- Reduce workplace incidents through proactive safety measures
+
+## Architecture
+
+The solution implements a multi-agent architecture where specialized AI agents collaborate to address different aspects of workforce safety:
+
+- **Supervisor Agent**: Orchestrates workflows and coordinates between specialized agents
+- **Weather Agent**: Analyzes weather conditions and environmental hazards
+- **Location Agent**: Provides site-specific safety information and geographic context
+- **Safety Officer Agent**: Enforces safety protocols and compliance requirements
+- **Emergency Management Agent**: Handles incident response and emergency procedures
+
+### Architecture Diagrams
+
+
+
+- **Workflow Diagram**: Field Workforce Safety AI Assistant workflow (`architecture/Figure-1.-Field-Workforce-Safety-AI-Assistant-workflow-1.png`)
+- **AWS Architecture**: Field Workforce Safety AI Assistant AWS architecture (`architecture/Figure-2.-Field-Workforce-Safety-AI-Assistant-AWS-architecture-1.png`)
+
+
+## AWS Services Used
+
+This solution leverages the following AWS services:
+
+- **Amazon Bedrock**: Foundation models and AI agent orchestration
+- **AWS Lambda**: Serverless compute for agent logic and API handlers
+- **Amazon DynamoDB**: NoSQL database for storing work orders and safety data
+- **Amazon API Gateway**: RESTful APIs for frontend-backend communication
+- **Amazon Cognito**: User authentication and authorization
+- **Amazon S3**: Object storage for documents and media files
+- **AWS CloudFormation**: Infrastructure as Code deployment
+
+## Prerequisites
+
+Before deploying this solution, ensure you have:
+
+- An AWS account with appropriate permissions
+- Access to Amazon Bedrock foundation models (tested with Anthropic Claude 3.5+ and Amazon Nova Pro/Premier)
+- Enabled required models in the [Amazon Bedrock console](https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/modelaccess)
+- AWS CLI installed and configured
+- Docker installed (for CDK deployment option)
+
+> **Note**: We recommend using Cross Region Inference profiles for improved agent performance. See the [Amazon Bedrock documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html) for setup instructions.
 
 ## Deployment
 
-You can deploy this solution using either AWS CDK directly or via CloudFormation.
+Choose one of the following deployment methods:
 
-### Prerequisites
+### Option 1: AWS CloudFormation (Recommended)
 
-- An AWS account
-- Access to Amazon Bedrock foundation models (this sample has been tested with Anthropic Sonnet 3.5+, Amazon Nova Pro/Premier),
-- Enable required models in the Amazon Bedrock console (https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/modelaccess). You may need to request access if not already granted.
-- We recommend using Cross Region Inference profile for better agent performance, please refer instructions at https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html for details.
+1. Navigate to the AWS CloudFormation console in your preferred region
+2. Create a new stack using the template from the `cfn-templates/` directory
+3. Configure the following parameters:
+   - **CollaboratorFoundationModel**: Foundation model ID for the collaborator agent (default: `anthropic.claude-3-5-haiku-20241022-v1:0`)
+   - **SupervisorFoundationModel**: Foundation model ID for the supervisor agent (default: `anthropic.claude-3-7-sonnet-20250219-v1:0`)
+4. Review and create the stack (deployment takes approximately 15-20 minutes)
+5. Once deployment completes, find the **FrontendUrl** in the stack outputs to access the application
 
+### Option 2: AWS CDK
 
-### Deployment Options
+#### Prerequisites
+- Python 3.8 or later
+- Node.js 14.x or later
+- AWS CDK CLI installed (`npm install -g aws-cdk`)
 
-#### Option 1: Deploy using CloudFormation
+#### Deployment Steps
 
-1. Download the CloudFormation template from the `cfn-templates` directory
-2. Navigate to the AWS CloudFormation console
-3. Create a new stack using the template
-4. Provide the required parameters:
-   - CollaboratorFoundationModel: Foundation model or Cross Region Inference Profile ID for the collaborator agent (default: anthropic.claude-3-5-haiku-20241022-v1:0)
-   - SupervisorFoundationModel: Foundation model or Cross Region Inference Profile ID for the supervisor agent (default: anthropic.claude-3-7-sonnet-20250219-v1:0)
-5. Wait for the stack to complete deployment (this may take 15-20 minutes)
+1. **Set up the environment**:
+   ```bash
+   cd cdk
+   python3 -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate.bat
+   pip install -r requirements.txt
+   ```
 
-The CloudFormation template will:
-- Clone the repository from GitHub
-- Bootstrap the CDK environment
-- Deploy all required resources using CDK
+2. **Authenticate with AWS ECR Public**:
+   ```bash
+   aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+   ```
 
-6. After successful deployment, go to the newly created stack **Outputs** tab. Look for the **FrontendUrl** output - this is your application URL. Click on the URL to open the application
+3. **Bootstrap CDK (first-time setup)**:
+   ```bash
+   cdk bootstrap
+   ```
 
-#### Option 2: Deploy using CDK directly
+4. **Deploy the solution**:
+   ```bash
+   cdk deploy FieldWorkForceSafetyMainStack \
+     --require-approval never \
+     --context collaborator_foundation_model="claude-3-5-haiku-20241022-v1:0" \
+     --context supervisor_foundation_model="anthropic.claude-3-7-sonnet-20250219-v1:0"
+   ```
 
-##### Prerequisites
-- Configure AWS credentials in your environment
-- Download and install [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-- Ensure Docker is running on your workstation. CDK uses Docker for bundling assets and packaging Lambda functions with dependencies. If you don't have Docker Desktop, you can use alternatives like colima/podman.
+5. **Access the application**: The frontend URL will be displayed in the deployment output
 
-1. Create and activate a Python virtual environment:
+## Usage
 
-```bash
-cd cdk
-python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate.bat
-```
-You should see (.venv) at the beginning of your command prompt.
+After successful deployment:
 
-2. Install required dependencies:
+1. Navigate to the provided frontend URL
+2. Create a user account or sign in
+3. Configure your profile settings and preferences
+4. Create work orders and receive AI-powered safety briefings
+5. Access emergency warnings and location-specific safety information
 
-```bash
-pip install -r requirements.txt
-```
-3. Ensure Docker is running. CDK uses Docker for bundling assets and packaging Lambda functions with dependencies. If you don't have Docker Desktop, you can use alternatives:
+## Cleanup
 
-4. Log in to the AWS ECR Public registry. This is needed to download docker images for builds.
-```bash
-aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
-```
+To avoid ongoing charges, remove the deployed resources:
 
-5. If this is the first time using CDK in this account and region, bootstrap CDK. This is a one-time setup that provisions resources CDK needs to deploy your stacks.
-```bash
-cdk bootstrap
-```
+**CloudFormation**: Delete the stack from the AWS CloudFormation console
 
-6. Deploy the FieldWorkForceSafetyMainStack stack with required parameters:
-```bash    
-cdk deploy FieldWorkForceSafetyMainStack --require-approval never --context collaborator_foundation_model="claude-3-5-haiku-20241022-v1:0" --context supervisor_foundation_model="anthropic.claude-3-7-sonnet-20250219-v1:0" 
-```
-
-7. After CDK deployment, you can find the frontend URL in the stack outputs displayed in your terminal -- this is your application URL. Click on the URL to open the application
-
-## Clean Up
-To avoid further charges, follow the tear down procedure:
-
-1. If you deployed using CloudFormation, delete the CloudFormation stack from the AWS console.
-
-2. If you deployed using CDK directly, destroy the parent stack:
+**CDK**: Run the following command:
 ```bash
 cdk destroy FieldWorkForceSafetyMainStack --require-approval never
 ```
 
-For a comprehensive list of arguments and options, consult the [CDK CLI documentation](https://docs.aws.amazon.com/cdk/v2/guide/cli.html).
-
-## Security Guideline
+## Security
 Please see the [security guidelines](documentation/security.md).
+
+## Contributing
+
+We welcome contributions! Please see our [contributing guidelines](CONTRIBUTING.md) for details on how to submit pull requests, report issues, and suggest improvements.
+
+## License
+
+This sample code is licensed under the MIT-0 License. See the [LICENSE](LICENSE) file for details.
+
 
 ## Content Security Legal Disclaimer
 Sample code, software libraries, command line tools, proofs of concept, templates, or other related technology are provided as AWS Content or Third-Party Content under the AWS Customer Agreement, or the relevant written agreement between you and AWS (whichever applies). You should not use this AWS Content or Third-Party Content in your production accounts, or on production or other critical data. You are responsible for testing, securing, and optimizing the AWS Content or Third-Party Content, such as sample code, as appropriate for production grade use based on your specific quality control practices and standards. Deploying AWS Content or Third-Party Content may incur AWS charges for creating or using AWS chargeable resources, such as running Amazon EC2 instances or using Amazon S3 storage.
