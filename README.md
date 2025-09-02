@@ -23,10 +23,11 @@ The solution implements a multi-agent architecture where specialized AI agents c
 
 ### Architecture Diagrams
 
+![Field Workforce Safety AI Assistant Workflow](architecture/Figure-1.-Field-Workforce-Safety-AI-Assistant-workflow-1.png)
+*Figure 1: Field Workforce Safety AI Assistant workflow*
 
-
-- **Workflow Diagram**: Field Workforce Safety AI Assistant workflow (`architecture/Figure-1.-Field-Workforce-Safety-AI-Assistant-workflow-1.png`)
-- **AWS Architecture**: Field Workforce Safety AI Assistant AWS architecture (`architecture/Figure-2.-Field-Workforce-Safety-AI-Assistant-AWS-architecture-1.png`)
+![Field Workforce Safety AI Assistant AWS Architecture](architecture/Figure-2.-Field-Workforce-Safety-AI-Assistant-AWS-architecture-1.png)
+*Figure 2: Field Workforce Safety AI Assistant AWS architecture*
 
 
 ## AWS Services Used
